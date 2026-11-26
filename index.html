@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <title>Web版シリアル端末</title>
+    <style>
+      :root {
+        --bg: #0a0c0a;
+        --panel: #12150f;
+        --panel-2: #171b14;
+        --line: #2a2f26;
+        --line-strong: #3a4034;
+        --text: #d7dccf;
+        --text-dim: #8b927f;
+        --text-faint: #5f6657;
+        --accent: #6fbf73;
+        --accent-dim: #2e4a30;
+        --accent-text: #0a0f0a;
+        --warn: #d8a24a;
+        --err: #d96a5f;
+        --ok: #6fbf73;
+        --mono: ui-monospace, "Cascadia Mono", "JetBrains Mono", Consolas, "Noto Sans Mono CJK JP", "Hiragino Kaku Gothic Mono", monospace;
+        --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Noto Sans JP", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        font-size: 14px;
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+        overflow: hidden;
+      }
+      button, select, input { font-family: inherit; font-size: 13px; color: var(--text); }
+      button, select, input[type="text"], input[type="number"] { min-height: 36px; }
+      button {
+        background: var(--panel-2);
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        padding: 0 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      button:hover:not(:disabled) { border-color: var(--accent-dim); background: #1d221a; }
+      button:disabled { opacity: .38; cursor: not-allowed; }
+      button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+      select, input[type="text"], input[type="number"] {
+        background: #0d100c;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        padding: 0 8px;
+      }
+      select:disabled, input:disabled { opacity: .38; }
+
+      /* ---------- toolbar ---------- */
+      header {
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+        padding: 8px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex: none;
+      }
+      .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+      .row .spacer { flex: 1; }
+      .group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+      .group + .group { border-left: 1px solid var(--line); padding-left: 10px; }
+      label.lbl { color: var(--text-dim); font-size: 12px; white-space: nowrap; }
+      #baudCustom { width: 96px; }
+      #btnConnect {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--accent-text);
+        font-weight: 700;
+        padding: 0 18px;
+      }
+      #btnConnect:hover:not(:disabled) { background: #82cf87; border-color: #82cf87; }
+      #btnConnect.connected {
+        background: transparent;
+        color: var(--err);
+        border-color: var(--err);
+      }
+      .toggle[aria-pressed="true"] {
+        background: var(--accent-dim);
+        border-color: var(--accent);
+        color: #cdeccd;
+      }
+      .toggle .dot {
+        display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+        background: var(--text-faint); margin-right: 6px; vertical-align: 1px;
+      }
+      .toggle[aria-pressed="true"] .dot { background: var(--accent); }
+
+      /* ---------- status bar ---------- */
+      #statusbar {
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        font-size: 12px; color: var(--text-dim);
+      }
+      #statusDot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-faint); flex: none; }
+      #statusDot.on { background: var(--ok); box-shadow: 0 0 6px rgba(111,191,115,.7); }
+      #statusDot.err { background: var(--err); }
+      #statusText { color: var(--text); font-weight: 600; }
+      #counters { font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); }
+      #portInfo { font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46vw; }
+
+      /* ---------- unsupported banner ---------- */
+      #unsupported {
+        display: none;
+        border-bottom: 1px solid #4a3a1e;
+        background: #211a0e;
+        color: #ecd9ac;
+        padding: 10px 12px;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      #unsupported.show { display: block; }
+      #unsupported code { font-family: var(--mono); background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 4px; }
+
+      /* ---------- log ---------- */
+      main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+      #log {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: auto;
+        padding: 10px 12px;
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        word-break: break-all;
+        color: #33ff33;
+        background: #000;
+        scrollbar-color: var(--line-strong) transparent;
+      }
+      #log .sys { color: #2e9e4f; }
+      #log .tx  { color: #a6ffb0; }
+      #log:empty::before {
+        content: "未接続です。「接続」からシリアルポートを選んでください。接続後はこの画面をクリックして、そのままキー入力できます。";
+        color: #1f7a33;
+      }
+      /* 直接入力モード: ログ画面にフォーカスがある間、末尾にカーソルを表示 */
+      #log.direct { cursor: text; }
+      #log.direct:focus { outline: 1px solid var(--accent-dim); outline-offset: -1px; }
+      #log.direct:focus::after {
+        content: "▌";
+        color: var(--accent);
+        animation: caretBlink 1.1s steps(1) infinite;
+      }
+      @keyframes caretBlink { 50% { opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) {
+        #log.direct:focus::after { animation: none; }
+      }
+
+      /* ---------- send bar ---------- */
+      footer {
+        flex: none;
+        border-top: 1px solid var(--line);
+        background: var(--panel);
+        padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      #sendRow { display: flex; gap: 8px; align-items: stretch; }
+      #sendInput {
+        flex: 1; min-width: 0;
+        font-family: var(--mono);
+        font-size: 14px;
+        padding: 0 10px;
+      }
+      #btnSend {
+        background: var(--accent); border-color: var(--accent);
+        color: var(--accent-text); font-weight: 700; padding: 0 20px;
+      }
+      #btnSend:hover:not(:disabled) { background: #82cf87; }
+      #toast {
+        position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%) translateY(8px);
+        background: #1d221a; border: 1px solid var(--line-strong); color: var(--text);
+        padding: 8px 14px; border-radius: 8px; font-size: 13px;
+        opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s;
+        z-index: 10; max-width: 90vw; text-align: center;
+      }
+      #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+      @media (max-width: 640px) {
+        .group + .group { border-left: none; padding-left: 0; }
+        #portInfo { max-width: 100%; }
+        #log { font-size: 12.5px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="row">
+        <div class="group">
+          <button id="btnConnect" type="button">接続</button>
+          <label class="lbl" for="baudSel">ボーレート</label>
+          <select id="baudSel">
+            <option value="9600">9600</option>
+            <option value="57600">57600</option>
+            <option value="115200" selected>115200</option>
+            <option value="230400">230400</option>
+            <option value="460800">460800</option>
+            <option value="921600">921600</option>
+            <option value="custom">カスタム…</option>
+          </select>
+          <input id="baudCustom" type="number" inputmode="numeric" min="110" max="4000000" step="1" value="115200" hidden aria-label="カスタムボーレート" />
+        </div>
+        <div class="group">
+          <button id="btnDtr" class="toggle" type="button" aria-pressed="false" disabled><span class="dot"></span>DTR</button>
+          <button id="btnRts" class="toggle" type="button" aria-pressed="false" disabled><span class="dot"></span>RTS</button>
+          <button id="btnReset" type="button" disabled title="DTR を 100ms 落として戻し、基板をリセットします">リセット (DTRパルス)</button>
+        </div>
+        <div class="spacer"></div>
+        <div class="group">
+          <button id="btnDirect" class="toggle" type="button" aria-pressed="true" title="ON の間、ログ画面をクリックして打ったキーがそのまま送信されます（Ctrl+C、矢印キー、貼り付けも可）。既定は ON です">直接入力</button>
+          <button id="btnScroll" class="toggle" type="button" aria-pressed="true">自動スクロール</button>
+          <button id="btnEcho" class="toggle" type="button" aria-pressed="false" title="ON の間、送信した文字をこの画面にも表示します。接続先（unox など）が入力をエコーする場合は OFF にしてください。ON のままだと文字が二重に表示されます。既定は OFF です">ローカルエコー</button>
+        </div>
+      </div>
+      <div id="statusbar">
+        <span id="statusDot"></span>
+        <span id="statusText">未接続</span>
+        <span id="portInfo"></span>
+        <span class="spacer" style="flex:1"></span>
+        <span id="counters">RX 0 B ・ TX 0 B</span>
+      </div>
+    </header>
+
+    <div id="unsupported" role="alert">
+      このブラウザは Web Serial API（<code>navigator.serial</code>）に対応していないため、シリアルポートへ接続できません。
+      PC 版の Google Chrome または Microsoft Edge でこのページを開いてください（モバイルブラウザ・Firefox・Safari は未対応です）。
+    </div>
+
+    <main>
+      <div id="log" class="direct" aria-live="off" tabindex="0"></div>
+    </main>
+
+    <footer>
+      <div id="sendRow">
+        <input id="sendInput" type="text" placeholder="送信する文字列を入力（Enter で送信）" autocomplete="off" autocapitalize="off" spellcheck="false" disabled />
+        <select id="eolSel" aria-label="改行コード" disabled>
+          <option value="lf" selected>LF</option>
+          <option value="crlf">CRLF</option>
+          <option value="cr">CR</option>
+          <option value="none">なし</option>
+        </select>
+        <button id="btnEsc" class="toggle" type="button" aria-pressed="true" title="送信欄の \n \r \t \e \0 \xHH \\ を実際のバイトに変換して送ります">\n 解釈</button>
+        <button id="btnSend" type="button" disabled>送信</button>
+      </div>
+      <div class="row">
+        <div class="group">
+          <button id="btnSave" type="button">ログを保存 (.log)</button>
+          <button id="btnCopy" type="button">ログをコピー</button>
+          <button id="btnClear" type="button">画面クリア</button>
+        </div>
+        <div class="spacer"></div>
+        <span class="lbl">↑ / ↓ で送信履歴 ・ 送信欄は \n \r \t \xHH 対応</span>
+      </div>
+    </footer>
+
+    <div id="toast" role="status"></div>
+
+    <script>
+      (function () {
+        'use strict';
+
+        var $ = function (id) { return document.getElementById(id); };
+        var logEl = $('log');
+        var btnConnect = $('btnConnect');
+        var baudSel = $('baudSel');
+        var baudCustom = $('baudCustom');
+        var btnDtr = $('btnDtr');
+        var btnRts = $('btnRts');
+        var btnReset = $('btnReset');
+        var btnScroll = $('btnScroll');
+        var btnEcho = $('btnEcho');
+        var btnDirect = $('btnDirect');
+        var btnEsc = $('btnEsc');
+        var statusDot = $('statusDot');
+        var statusText = $('statusText');
+        var portInfo = $('portInfo');
+        var counters = $('counters');
+        var sendInput = $('sendInput');
+        var eolSel = $('eolSel');
+        var btnSend = $('btnSend');
+        var toastEl = $('toast');
+
+        var supported = ('serial' in navigator);
+        if (!supported) {
+          $('unsupported').classList.add('show');
+          btnConnect.disabled = true;
+          baudSel.disabled = true;
+          setStatus('err', 'Web Serial API 未対応のブラウザです');
+        }
+
+        /* ---------- state ---------- */
+        var port = null;
+        var reader = null;
+        var writer = null;
+        var reading = false;
+        var connected = false;
+        var dtrOn = false;
+        var rtsOn = false;
+        var autoScroll = true;
+        var localEcho = false;   // ローカルエコー（既定 OFF: 接続先がエコーすると文字が二重になるため）
+        var escOn = true;        // 送信欄の \n 等をバイトに変換する
+        var directOn = true;     // 直接入力モード（既定 ON: 接続すれば画面クリックでそのまま打てる）
+        var sendChain = Promise.resolve(); // 直接入力の書き込み順序を保つキュー
+        var rxBytes = 0;
+        var txBytes = 0;
+        var logText = '';        // 受信＋送信エコー＋システム行を含む全文（保存・コピー用）
+        var nodeCount = 0;
+        var rxPending = '';      // 描画待ちの受信テキスト（まとめて追記して読み取りを滞らせない）
+        var rxFlushScheduled = false;
+        var rxFlushTimer = null;
+        var history = [];
+        var histIdx = -1;
+        var toastTimer = null;
+
+        var decoder = new TextDecoder('utf-8', { fatal: false });
+        var encoder = new TextEncoder();
+
+        /* ---------- helpers ---------- */
+        function toast(msg) {
+          toastEl.textContent = msg;
+          toastEl.classList.add('show');
+          if (toastTimer) clearTimeout(toastTimer);
+          toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2200);
+        }
+        function setStatus(kind, text) {
+          statusDot.className = kind === 'on' ? 'on' : (kind === 'err' ? 'err' : '');
+          statusDot.id = 'statusDot';
+          statusText.textContent = text;
+        }
+        function updateCounters() {
+          counters.textContent = 'RX ' + rxBytes.toLocaleString('ja-JP') + ' B ・ TX ' + txBytes.toLocaleString('ja-JP') + ' B';
+        }
+        function scrollIfNeeded() {
+          if (autoScroll) logEl.scrollTop = logEl.scrollHeight;
+        }
+        function appendText(text, cls) {
+          if (!text) return;
+          // システム行や送信エコーより前に届いていた受信分を先に描き、順序を保つ
+          if (rxPending) flushRx();
+          logText += text;
+          var span = document.createElement('span');
+          if (cls) span.className = cls;
+          span.textContent = text;
+          logEl.appendChild(span);
+          nodeCount++;
+          // ノードが増えすぎたら1つにまとめて描画負荷を抑える
+          if (nodeCount > 1500) {
+            logEl.textContent = logText;
+            nodeCount = 1;
+          }
+          scrollIfNeeded();
+        }
+        // 受信テキストはその場で DOM に入れず、ひと呼吸分を文字列に溜めてから
+        // まとめて1回だけ追記する。チャンクごとに追記＋スクロール（scrollHeight の
+        // 読み取りで強制レイアウト）を行うと、バースト受信時に読み取りループが
+        // ポートを読み切る速度が落ち、ブラウザ側バッファ溢れでバイトが落ちかねない。
+        function queueRxText(text) {
+          if (!text) return;
+          rxPending += text;
+          if (rxPending.length >= 4096) { flushRx(); return; }
+          if (rxFlushScheduled) return;
+          rxFlushScheduled = true;
+          var run = function () { rxFlushScheduled = false; flushRx(); };
+          if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
+          rxFlushTimer = setTimeout(run, 50); // rAF が来ない環境・タブでも必ず描く
+        }
+        function flushRx() {
+          if (rxFlushTimer) { clearTimeout(rxFlushTimer); rxFlushTimer = null; }
+          rxFlushScheduled = false;
+          if (!rxPending) return;
+          var text = rxPending;
+          rxPending = '';
+          appendRxText(text);
+        }
+        // 表示済みログの末尾1文字を取り消す（改行は遡らない）。
+        // ログ本文 logText と画面の両方を同じだけ縮め、保存・コピーとも一致させる。
+        function eraseLastLogChar() {
+          if (!logText || logText.charAt(logText.length - 1) === '\n') return;
+          logText = logText.slice(0, -1);
+          var nodes = logEl.childNodes;
+          for (var i = nodes.length - 1; i >= 0; i--) {
+            var t = nodes[i].textContent;
+            if (!t) continue;
+            if (t.length <= 1) {
+              logEl.removeChild(nodes[i]);
+              if (nodeCount > 0) nodeCount--;
+            } else {
+              nodes[i].textContent = t.slice(0, -1);
+            }
+            return;
+          }
+        }
+        // 受信テキスト中の \b (0x08) を端末と同様に「直前の1文字の消去」として処理する。
+        // 接続先（unox 等）は BS を受けると "\b \b" をエコーして1文字消すが、
+        // 生テキストを追記するだけの表示では \b が見た目に効かず、BS が効かないように見える。
+        function appendRxText(text) {
+          var run = '';
+          for (var i = 0; i < text.length; i++) {
+            var ch = text.charAt(i);
+            if (ch === '\x08') {
+              if (run.length && run.charAt(run.length - 1) !== '\n') {
+                run = run.slice(0, -1); // 同じ受信塊の中でまだ表示していない文字を消す
+              } else if (!run.length) {
+                eraseLastLogChar(); // 表示済みの文字を消す
+              }
+              // run が改行で終わっている場合の \b は行を遡らないので無視する
+            } else {
+              run += ch;
+            }
+          }
+          if (run) appendText(run);
+        }
+        function sysLine(msg) {
+          var stamp = new Date();
+          var hh = String(stamp.getHours()).padStart(2, '0');
+          var mm = String(stamp.getMinutes()).padStart(2, '0');
+          var ss = String(stamp.getSeconds()).padStart(2, '0');
+          appendText('--- [' + hh + ':' + mm + ':' + ss + '] ' + msg + '\n', 'sys');
+        }
+        function currentBaud() {
+          if (baudSel.value === 'custom') {
+            var v = parseInt(baudCustom.value, 10);
+            return (isFinite(v) && v > 0) ? v : 115200;
+          }
+          return parseInt(baudSel.value, 10);
+        }
+        // 改行コード選択を実際の制御文字へ変換する。
+        // HTML の value 属性に "\n" と書いてもエスケープは解釈されず、
+        // バックスラッシュ＋n の2文字がそのまま返るため、必ずここを通すこと。
+        function currentEol() {
+          switch (eolSel.value) {
+            case 'crlf': return '\r\n';
+            case 'cr': return '\r';
+            case 'none': return '';
+            default: return '\n';
+          }
+        }
+        function setControlsEnabled(on) {
+          btnDtr.disabled = !on;
+          btnRts.disabled = !on;
+          btnReset.disabled = !on;
+          sendInput.disabled = !on;
+          eolSel.disabled = !on;
+          btnSend.disabled = !on;
+          baudSel.disabled = on || !supported;
+          baudCustom.disabled = on;
+          btnConnect.textContent = on ? '切断' : '接続';
+          btnConnect.classList.toggle('connected', on);
+        }
+        function setToggle(btn, on) {
+          btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        }
+
+        /* ---------- escape decoding / write queue ---------- */
+        // \n \r \t \e \0 \\ \xHH を実際のバイト列に変換する。
+        // 戻り値: { bytes: Uint8Array, text: エコー表示用の文字列 }
+        function decodeEscapes(str) {
+          var bytes = [];
+          var text = '';
+          function pushStr(s) {
+            var b = encoder.encode(s);
+            for (var i = 0; i < b.length; i++) bytes.push(b[i]);
+            text += s;
+          }
+          function pushByte(b, ch) { bytes.push(b); text += ch; }
+          var i = 0;
+          while (i < str.length) {
+            var c = str.charAt(i);
+            if (c === '\\' && i + 1 < str.length) {
+              var n = str.charAt(i + 1);
+              if (n === 'n') { pushByte(0x0A, '\n'); i += 2; continue; }
+              if (n === 'r') { pushByte(0x0D, '\r'); i += 2; continue; }
+              if (n === 't') { pushByte(0x09, '\t'); i += 2; continue; }
+              if (n === 'e') { pushByte(0x1B, '\x1B'); i += 2; continue; }
+              if (n === '0') { pushByte(0x00, '\0'); i += 2; continue; }
+              if (n === '\\') { pushByte(0x5C, '\\'); i += 2; continue; }
+              if (n === 'x') {
+                var hex = str.substr(i + 2, 2);
+                if (/^[0-9a-fA-F]{2}$/.test(hex)) {
+                  var v = parseInt(hex, 16);
+                  pushByte(v, String.fromCharCode(v));
+                  i += 4; continue;
+                }
+              }
+              // 未知のエスケープはバックスラッシュをそのまま送る
+              pushStr(c); i += 1; continue;
+            }
+            pushStr(c); i += 1;
+          }
+          return { bytes: new Uint8Array(bytes), text: text };
+        }
+        // 書き込みを直列化し、キー入力の順序が入れ替わらないようにする
+        function queueWrite(bytes) {
+          sendChain = sendChain.then(async function () {
+            if (!writer || !connected || !bytes || !bytes.length) return;
+            try {
+              await writer.write(bytes);
+              txBytes += bytes.length;
+              updateCounters();
+            } catch (e) {
+              sysLine('送信に失敗しました: ' + (e && e.message ? e.message : e));
+            }
+          });
+          return sendChain;
+        }
+
+        /* ---------- connect / disconnect ---------- */
+        function describePort(p) {
+          try {
+            var info = p.getInfo ? p.getInfo() : {};
+            var parts = [];
+            if (info.usbVendorId != null) parts.push('VID 0x' + info.usbVendorId.toString(16).toUpperCase().padStart(4, '0'));
+            if (info.usbProductId != null) parts.push('PID 0x' + info.usbProductId.toString(16).toUpperCase().padStart(4, '0'));
+            if (info.bluetoothServiceClassId) parts.push('Bluetooth');
+            return parts.join(' / ');
+          } catch (e) { return ''; }
+        }
+
+        async function connect() {
+          var baud = currentBaud();
+          try {
+            port = await navigator.serial.requestPort();
+          } catch (e) {
+            // ポート選択をキャンセルした場合は何もしない
+            return;
+          }
+          try {
+            await port.open({
+              baudRate: baud,
+              dataBits: 8,
+              stopBits: 1,
+              parity: 'none',
+              flowControl: 'none',
+              bufferSize: 262144
+            });
+          } catch (e) {
+            sysLine('接続に失敗しました: ' + (e && e.message ? e.message : e));
+            setStatus('err', '接続失敗');
+            port = null;
+            return;
+          }
+          connected = true;
+          dtrOn = false; rtsOn = false;
+          setToggle(btnDtr, false); setToggle(btnRts, false);
+          setControlsEnabled(true);
+          var desc = describePort(port);
+          portInfo.textContent = desc ? '(' + desc + ')' : '';
+          setStatus('on', '接続中 ・ ' + baud.toLocaleString('ja-JP') + ' bps');
+          sysLine('接続しました（' + baud + ' bps, 8N1' + (desc ? ', ' + desc : '') + '）');
+          writer = port.writable.getWriter();
+          if (directOn) { logEl.focus(); } else { sendInput.focus(); }
+          readLoop();
+        }
+
+        async function readLoop() {
+          reading = true;
+          try {
+            while (port && port.readable && reading) {
+              reader = port.readable.getReader();
+              try {
+                while (true) {
+                  var res = await reader.read();
+                  if (res.done) break;
+                  if (res.value && res.value.length) {
+                    rxBytes += res.value.length;
+                    updateCounters();
+                    queueRxText(decoder.decode(res.value, { stream: true }));
+                  }
+                }
+              } catch (e) {
+                if (reading) sysLine('受信エラー: ' + (e && e.message ? e.message : e));
+              } finally {
+                try { reader.releaseLock(); } catch (e2) {}
+                reader = null;
+              }
+            }
+          } finally {
+            reading = false;
+            // デコーダ内に残った末尾バイトと描画待ち分を落とさず表示する
+            var tail = decoder.decode();
+            if (tail) rxPending += tail;
+            flushRx();
+          }
+        }
+
+        async function disconnect() {
+          // 切断表示より前に、届いている受信分をすべて描いておく
+          var tail = decoder.decode();
+          if (tail) rxPending += tail;
+          flushRx();
+          reading = false;
+          try { if (reader) await reader.cancel(); } catch (e) {}
+          try { if (writer) { writer.releaseLock(); } } catch (e) {}
+          writer = null;
+          try { if (port) await port.close(); } catch (e) {}
+          port = null;
+          if (connected) sysLine('切断しました');
+          connected = false;
+          portInfo.textContent = '';
+          setControlsEnabled(false);
+          setStatus('', '未接続');
+        }
+
+        btnConnect.addEventListener('click', function () {
+          if (!supported) return;
+          if (connected) { disconnect(); } else { connect(); }
+        });
+
+        if (supported) {
+          navigator.serial.addEventListener('disconnect', function (ev) {
+            if (port && ev.target === port) {
+              flushRx();
+              sysLine('デバイスが取り外されました');
+              disconnect();
+            }
+          });
+        }
+
+        /* ---------- baud ---------- */
+        baudSel.addEventListener('change', function () {
+          baudCustom.hidden = baudSel.value !== 'custom';
+          if (baudSel.value !== 'custom') baudCustom.value = baudSel.value;
+          if (baudSel.value === 'custom') baudCustom.focus();
+        });
+
+        /* ---------- signals ---------- */
+        async function applySignals() {
+          if (!port || !connected) return;
+          try {
+            await port.setSignals({ dataTerminalReady: dtrOn, requestToSend: rtsOn });
+          } catch (e) {
+            sysLine('信号の設定に失敗しました: ' + (e && e.message ? e.message : e));
+          }
+        }
+        btnDtr.addEventListener('click', function () {
+          dtrOn = !dtrOn; setToggle(btnDtr, dtrOn); applySignals();
+        });
+        btnRts.addEventListener('click', function () {
+          rtsOn = !rtsOn; setToggle(btnRts, rtsOn); applySignals();
+        });
+        btnReset.addEventListener('click', async function () {
+          if (!port || !connected) return;
+          btnReset.disabled = true;
+          try {
+            await port.setSignals({ dataTerminalReady: false, requestToSend: rtsOn });
+            await new Promise(function (r) { setTimeout(r, 100); });
+            await port.setSignals({ dataTerminalReady: dtrOn, requestToSend: rtsOn });
+            sysLine('DTR パルスでリセット信号を送りました');
+          } catch (e) {
+            sysLine('リセットに失敗しました: ' + (e && e.message ? e.message : e));
+          } finally {
+            btnReset.disabled = !connected;
+          }
+        });
+
+        /* ---------- view toggles ---------- */
+        btnScroll.addEventListener('click', function () {
+          autoScroll = !autoScroll; setToggle(btnScroll, autoScroll); scrollIfNeeded();
+        });
+        btnEcho.addEventListener('click', function () {
+          localEcho = !localEcho; setToggle(btnEcho, localEcho);
+          toast(localEcho ? 'ローカルエコー ON: 送信した文字を画面にも表示します' : 'ローカルエコー OFF: 接続先のエコーだけを表示します');
+        });
+        btnEsc.addEventListener('click', function () {
+          escOn = !escOn; setToggle(btnEsc, escOn);
+          toast(escOn ? '\\n などを実際のバイトに変換して送ります' : '\\n などを文字のまま送ります');
+        });
+        btnDirect.addEventListener('click', function () {
+          directOn = !directOn; setToggle(btnDirect, directOn);
+          logEl.classList.toggle('direct', directOn);
+          if (directOn) {
+            toast('直接入力モード: ログ画面をクリックすると、キー入力がそのまま送信されます');
+            if (connected) logEl.focus();
+          }
+        });
+
+        /* ---------- send ---------- */
+        async function sendCurrent() {
+          if (!connected || !writer) return;
+          var text = sendInput.value;
+          var eol = currentEol();
+          var bytes, echoText;
+          if (escOn) {
+            var d = decodeEscapes(text);
+            bytes = d.bytes;
+            echoText = d.text;
+            // 解釈結果が既に改行で終わっていれば、改行コードは二重に付けない
+            var endsNl = bytes.length > 0 && (bytes[bytes.length - 1] === 0x0A || bytes[bytes.length - 1] === 0x0D);
+            if (eol && !endsNl) {
+              var eb = encoder.encode(eol);
+              var merged = new Uint8Array(bytes.length + eb.length);
+              merged.set(bytes, 0); merged.set(eb, bytes.length);
+              bytes = merged;
+            }
+          } else {
+            bytes = encoder.encode(text + eol);
+            echoText = text;
+          }
+          await queueWrite(bytes);
+          if (localEcho) {
+            appendText(echoText + (eol ? '\n' : ''), 'tx');
+          }
+          if (text) {
+            if (history[history.length - 1] !== text) history.push(text);
+            if (history.length > 100) history.shift();
+          }
+          histIdx = -1;
+          sendInput.value = '';
+          sendInput.focus();
+        }
+        btnSend.addEventListener('click', sendCurrent);
+        sendInput.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            sendCurrent();
+          } else if (ev.key === 'ArrowUp') {
+            if (history.length) {
+              ev.preventDefault();
+              histIdx = histIdx < 0 ? history.length - 1 : Math.max(0, histIdx - 1);
+              sendInput.value = history[histIdx];
+            }
+          } else if (ev.key === 'ArrowDown') {
+            if (histIdx >= 0) {
+              ev.preventDefault();
+              histIdx++;
+              sendInput.value = histIdx >= history.length ? '' : history[histIdx];
+              if (histIdx >= history.length) histIdx = -1;
+            }
+          }
+        });
+
+        /* ---------- direct input (log screen acts as a terminal) ---------- */
+        var KEY_SEQS = {
+          ArrowUp: '\x1b[A', ArrowDown: '\x1b[B', ArrowRight: '\x1b[C', ArrowLeft: '\x1b[D',
+          Home: '\x1b[H', End: '\x1b[F',
+          Delete: '\x1b[3~', PageUp: '\x1b[5~', PageDown: '\x1b[6~'
+        };
+        function handleDirectKey(ev) {
+          if (!directOn || !connected) return;
+          if (ev.metaKey || ev.isComposing) return;
+          var key = ev.key;
+          var out = null;
+          var echo = '';
+          // Backspace は修飾キーの有無にかかわらず必ず DEL (0x7F) を送る。
+          // 修飾キー分岐より先に処理しないと、Ctrl+Backspace 等が
+          // key.length === 1 の条件に弾かれて無言で捨てられてしまう。
+          if (key === 'Backspace') {
+            ev.preventDefault();
+            queueWrite(new Uint8Array([0x7F]));
+            return;
+          }
+          if (ev.ctrlKey || ev.altKey) {
+            if (!ev.ctrlKey) return; // Alt 単独の組み合わせは送らない
+            var low = key.toLowerCase();
+            if (low === 'v') return; // 貼り付けは paste イベントに任せる
+            if (low === 'c') {
+              var sel = window.getSelection ? window.getSelection() : null;
+              if (sel && String(sel).length > 0) return; // テキスト選択中はコピーを優先
+            }
+            if (key.length === 1) {
+              var code = key.toUpperCase().charCodeAt(0);
+              if (code >= 64 && code <= 95) out = new Uint8Array([code - 64]); // Ctrl+A=0x01 … Ctrl+C=0x03, Ctrl+[=ESC
+              else if (key === ' ') out = new Uint8Array([0]);
+            }
+            if (!out) return;
+          } else if (key === 'Enter') {
+            out = encoder.encode(currentEol() || '\r');
+            echo = '\n';
+          } else if (key === 'Tab') {
+            out = new Uint8Array([0x09]);
+          } else if (key === 'Escape') {
+            out = new Uint8Array([0x1B]);
+          } else if (KEY_SEQS[key]) {
+            out = encoder.encode(KEY_SEQS[key]);
+          } else if (key.length === 1) {
+            out = encoder.encode(key);
+            echo = key;
+          } else {
+            return;
+          }
+          ev.preventDefault();
+          queueWrite(out);
+          if (localEcho && echo) appendText(echo, 'tx');
+        }
+        // フォーム部品（送信欄・セレクト・数値入力）にフォーカスがある間は直接入力にしない
+        function isFormTarget(t) {
+          if (!t || t === logEl) return false;
+          var tag = t.tagName;
+          return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable === true;
+        }
+        // イベントの対象がログ画面自身か、その内側の要素（表示テキストの span 等）か。
+        // 貼り付けでは対象が span になることがあり、対象 === logEl の一致だけで判定すると
+        // logEl 側と document 側の両方のハンドラが同じ貼り付けを処理し、二重送信になる。
+        function inLog(t) {
+          return !!t && (t === logEl || logEl.contains(t));
+        }
+        logEl.addEventListener('keydown', handleDirectKey);
+        // ログ画面以外（ボタンや余白）にフォーカスがあっても、打ったキーを端末へ送る。
+        // これがないと「接続」ボタン等にフォーカスが残ったままでは1文字も送れない。
+        document.addEventListener('keydown', function (ev) {
+          if (inLog(ev.target) || isFormTarget(ev.target)) return;
+          handleDirectKey(ev);
+        });
+        // ログ画面をクリックしたら確実にフォーカスを移す
+        logEl.addEventListener('mousedown', function () {
+          if (directOn) logEl.focus({ preventScroll: true });
+        });
+        function handleDirectPaste(ev) {
+          if (!directOn || !connected) return;
+          if (isFormTarget(ev.target)) return;
+          ev.preventDefault();
+          var cd = ev.clipboardData || window.clipboardData;
+          var text = cd ? cd.getData('text') : '';
+          if (text) {
+            queueWrite(encoder.encode(text));
+            if (localEcho) appendText(text, 'tx');
+          }
+        }
+        logEl.addEventListener('paste', function (ev) {
+          // document 側のハンドラへ伝播させない（同じ貼り付けの二重送信防止）
+          ev.stopPropagation();
+          handleDirectPaste(ev);
+        });
+        document.addEventListener('paste', function (ev) {
+          if (inLog(ev.target)) return; // ログ内への貼り付けは logEl 側で処理済み
+          handleDirectPaste(ev);
+        });
+
+        /* ---------- log ops ---------- */
+        $('btnSave').addEventListener('click', function () {
+          if (!logText) { toast('保存するログがありません'); return; }
+          var now = new Date();
+          function p(n, w) { return String(n).padStart(w || 2, '0'); }
+          var name = 'serial_' + now.getFullYear() + p(now.getMonth() + 1) + p(now.getDate()) +
+                     '_' + p(now.getHours()) + p(now.getMinutes()) + p(now.getSeconds()) + '.log';
+          var blob = new Blob([logText], { type: 'text/plain;charset=utf-8' });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url; a.download = name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+          toast('ログを保存しました: ' + name);
+        });
+        $('btnCopy').addEventListener('click', async function () {
+          if (!logText) { toast('コピーするログがありません'); return; }
+          try {
+            await navigator.clipboard.writeText(logText);
+            toast('ログをクリップボードにコピーしました（' + logText.length.toLocaleString('ja-JP') + ' 文字）');
+          } catch (e) {
+            // クリップボード API が使えない環境向けフォールバック
+            var ta = document.createElement('textarea');
+            ta.value = logText;
+            ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            var ok = false;
+            try { ok = document.execCommand('copy'); } catch (e2) {}
+            document.body.removeChild(ta);
+            toast(ok ? 'ログをコピーしました' : 'コピーに失敗しました');
+          }
+        });
+        $('btnClear').addEventListener('click', function () {
+          rxPending = ''; // 描画待ちの受信分も破棄し、クリア後に復活させない
+          if (rxFlushTimer) { clearTimeout(rxFlushTimer); rxFlushTimer = null; }
+          rxFlushScheduled = false;
+          logEl.textContent = '';
+          logText = '';
+          nodeCount = 0;
+        });
+
+        updateCounters();
+      })();
+    </script>
+  </body>
+</html>
