@@ -225,6 +225,7 @@
           <button id="btnDirect" class="toggle" type="button" aria-pressed="true" data-i18n="direct" data-i18n-title="directTitle" title="ON の間、ログ画面をクリックして打ったキーがそのまま送信されます（Ctrl+C、矢印キー、貼り付けも可）。既定は ON です">直接入力</button>
           <button id="btnScroll" class="toggle" type="button" aria-pressed="true" data-i18n="scroll">自動スクロール</button>
           <button id="btnEcho" class="toggle" type="button" aria-pressed="false" data-i18n="echo" data-i18n-title="echoTitle" title="ON の間、送信した文字をこの画面にも表示します。接続先（unox など）が入力をエコーする場合は OFF にしてください。ON のままだと文字が二重に表示されます。既定は OFF です">ローカルエコー</button>
+          <button id="btnHex" class="toggle" type="button" aria-pressed="false" data-i18n="hex" data-i18n-title="hexTitle" title="ON の間、受信バイトを 16 進ダンプで表示します。この間「ログを保存」は、受信した生バイトを .bin で保存します">HEX 表示</button>
         </div>
         <div class="group">
           <button id="btnLang" type="button">English</button>
@@ -287,6 +288,7 @@
         var btnReset = $('btnReset');
         var btnScroll = $('btnScroll');
         var btnEcho = $('btnEcho');
+        var btnHex = $('btnHex');
         var btnDirect = $('btnDirect');
         var btnEsc = $('btnEsc');
         var statusDot = $('statusDot');
@@ -343,7 +345,13 @@
             copiedOpen: 'ログをクリップボードにコピーしました（',
             copiedClose: ' 文字）',
             copyOk: 'ログをコピーしました',
-            copyFail: 'コピーに失敗しました'
+            copyFail: 'コピーに失敗しました',
+            hex: 'HEX 表示',
+            hexTitle: 'ON の間、受信バイトを 16 進ダンプで表示します。この間「ログを保存」は、受信した生バイトを .bin で保存します',
+            saveBin: 'バイナリ保存 (.bin)',
+            hexOnMsg: 'HEX 表示 ON: 受信バイトを 16 進ダンプで表示します',
+            hexOffMsg: 'HEX 表示 OFF: 受信データをテキストで表示します',
+            noBinSave: '保存するバイナリがありません'
           },
           en: {
             title: 'Web Serial Terminal',
@@ -388,7 +396,13 @@
             copiedOpen: 'Copied the log to the clipboard (',
             copiedClose: ' characters)',
             copyOk: 'Log copied',
-            copyFail: 'Copy failed'
+            copyFail: 'Copy failed',
+            hex: 'HEX view',
+            hexTitle: 'While ON, received bytes are shown as a hex dump. In this mode, Save writes the raw received bytes to a .bin file',
+            saveBin: 'Save binary (.bin)',
+            hexOnMsg: 'HEX view ON: received bytes are shown as a hex dump',
+            hexOffMsg: 'HEX view OFF: received data is shown as text',
+            noBinSave: 'No binary data to save'
           }
         };
         var lang = 'ja';
@@ -416,6 +430,7 @@
           for (i = 0; i < els.length; i++) els[i].innerHTML = L[els[i].getAttribute('data-i18n-html')];
           btnLang.textContent = (lang === 'ja') ? 'English' : '日本語';
           btnConnect.textContent = connected ? L.disconnect : L.connect;
+          $('btnSave').textContent = hexOn ? L.saveBin : L.save;
           renderStatus();
           updateCounters();
         }
@@ -454,6 +469,14 @@
         var rxPending = '';      // 描画待ちの受信テキスト（まとめて追記して読み取りを滞らせない）
         var rxFlushScheduled = false;
         var rxFlushTimer = null;
+        var hexOn = false;       // HEX 表示モード（受信バイトを 16 進ダンプで表示）
+        var rxRaw = [];          // 受信生バイト（.bin 保存用にチャンクのまま保持）
+        var rxRawLen = 0;
+        var RX_RAW_MAX = 8388608; // 生バイト保持の上限 8 MiB（超過分は古い順に破棄）
+        var rxHexPending = [];   // HEX 描画待ちの受信チャンク
+        var rxHexLen = 0;
+        var hexLine = [];        // 作成中のダンプ行（最大 16 バイト）
+        var hexBase = 0;         // ダンプ表示済みの受信バイト数（オフセット表示用）
         var history = [];
         var histIdx = -1;
         var toastTimer = null;
@@ -518,10 +541,76 @@
         function flushRx() {
           if (rxFlushTimer) { clearTimeout(rxFlushTimer); rxFlushTimer = null; }
           rxFlushScheduled = false;
-          if (!rxPending) return;
-          var text = rxPending;
-          rxPending = '';
-          appendRxText(text);
+          if (rxPending) {
+            var text = rxPending;
+            rxPending = '';
+            appendRxText(text);
+          }
+          if (rxHexLen) {
+            var chunks = rxHexPending;
+            rxHexPending = [];
+            rxHexLen = 0;
+            appendRxHex(chunks);
+          }
+        }
+        function pushRaw(chunk) {
+          // 受信した生バイトを .bin 保存用に保持する（上限を超えたら古い順に破棄）
+          rxRaw.push(chunk.slice());
+          rxRawLen += chunk.length;
+          while (rxRawLen > RX_RAW_MAX && rxRaw.length > 1) {
+            rxRawLen -= rxRaw[0].length;
+            rxRaw.shift();
+          }
+        }
+        function queueRxHex(chunk) {
+          rxHexPending.push(chunk);
+          rxHexLen += chunk.length;
+          if (rxHexLen >= 4096) { flushRx(); return; }
+          if (rxFlushScheduled) return;
+          rxFlushScheduled = true;
+          var run = function () { rxFlushScheduled = false; flushRx(); };
+          if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
+          rxFlushTimer = setTimeout(run, 50);
+        }
+        function hexDigit(n) { return '0123456789abcdef'.charAt(n); }
+        function fmtHexLine(off, bytes) {
+          var h = off.toString(16);
+          while (h.length < 8) h = '0' + h;
+          var s = h + '  ';
+          var asc = '';
+          for (var i = 0; i < 16; i++) {
+            if (i < bytes.length) {
+              var b = bytes[i];
+              s += hexDigit(b >> 4) + hexDigit(b & 15) + ' ';
+              asc += (b >= 0x20 && b < 0x7f) ? String.fromCharCode(b) : '.';
+            } else {
+              s += '   ';
+            }
+            if (i === 7) s += ' ';
+          }
+          return s + ' |' + asc + '|\n';
+        }
+        function appendRxHex(chunks) {
+          var out = '';
+          for (var c = 0; c < chunks.length; c++) {
+            var chunk = chunks[c];
+            for (var i = 0; i < chunk.length; i++) {
+              hexLine.push(chunk[i]);
+              if (hexLine.length === 16) {
+                out += fmtHexLine(hexBase, hexLine);
+                hexBase += 16;
+                hexLine = [];
+              }
+            }
+          }
+          if (out) appendText(out);
+        }
+        function flushHexLine() {
+          if (!hexLine.length) return;
+          var line = fmtHexLine(hexBase, hexLine);
+          hexBase += hexLine.length;
+          hexLine = [];
+          appendText(line);
         }
         // 表示済みログの末尾1文字を取り消す（改行は遡らない）。
         // ログ本文 logText と画面の両方を同じだけ縮め、保存・コピーとも一致させる。
@@ -715,7 +804,9 @@
                   if (res.value && res.value.length) {
                     rxBytes += res.value.length;
                     updateCounters();
-                    queueRxText(decoder.decode(res.value, { stream: true }));
+                    pushRaw(res.value);
+                    if (hexOn) queueRxHex(res.value);
+                    else queueRxText(decoder.decode(res.value, { stream: true }));
                   }
                 }
               } catch (e) {
@@ -731,6 +822,7 @@
             var tail = decoder.decode();
             if (tail) rxPending += tail;
             flushRx();
+            flushHexLine();
           }
         }
 
@@ -739,6 +831,7 @@
           var tail = decoder.decode();
           if (tail) rxPending += tail;
           flushRx();
+          flushHexLine();
           reading = false;
           try { if (reader) await reader.cancel(); } catch (e) {}
           try { if (writer) { writer.releaseLock(); } } catch (e) {}
@@ -807,6 +900,16 @@
         /* ---------- view toggles ---------- */
         btnScroll.addEventListener('click', function () {
           autoScroll = !autoScroll; setToggle(btnScroll, autoScroll); scrollIfNeeded();
+        });
+        btnHex.addEventListener('click', function () {
+          // 表示形式を切り替える前に、溜まっている受信分を切り替え前の形式で描き切る
+          var tail = decoder.decode();
+          if (tail) rxPending += tail;
+          flushRx();
+          flushHexLine();
+          hexOn = !hexOn; setToggle(btnHex, hexOn);
+          $('btnSave').textContent = hexOn ? L.saveBin : L.save;
+          toast(hexOn ? L.hexOnMsg : L.hexOffMsg);
         });
         btnEcho.addEventListener('click', function () {
           localEcho = !localEcho; setToggle(btnEcho, localEcho);
@@ -979,6 +1082,26 @@
 
         /* ---------- log ops ---------- */
         $('btnSave').addEventListener('click', function () {
+          if (hexOn) {
+            // HEX モードでは、受信した生バイトそのものを .bin で保存する
+            if (!rxRawLen) { toast(L.noBinSave); return; }
+            flushRx();
+            flushHexLine();
+            var nowB = new Date();
+            function pB(n, w) { return String(n).padStart(w || 2, '0'); }
+            var nameB = 'serial_' + nowB.getFullYear() + pB(nowB.getMonth() + 1) + pB(nowB.getDate()) +
+                        '_' + pB(nowB.getHours()) + pB(nowB.getMinutes()) + pB(nowB.getSeconds()) + '.bin';
+            var blobB = new Blob(rxRaw, { type: 'application/octet-stream' });
+            var urlB = URL.createObjectURL(blobB);
+            var aB = document.createElement('a');
+            aB.href = urlB; aB.download = nameB;
+            document.body.appendChild(aB);
+            aB.click();
+            document.body.removeChild(aB);
+            setTimeout(function () { URL.revokeObjectURL(urlB); }, 1000);
+            toast(L.savedMsg + nameB);
+            return;
+          }
           if (!logText) { toast(L.noLogSave); return; }
           var now = new Date();
           function p(n, w) { return String(n).padStart(w || 2, '0'); }
@@ -1014,6 +1137,12 @@
         });
         $('btnClear').addEventListener('click', function () {
           rxPending = ''; // 描画待ちの受信分も破棄し、クリア後に復活させない
+          rxRaw = [];
+          rxRawLen = 0;
+          rxHexPending = [];
+          rxHexLen = 0;
+          hexLine = [];
+          hexBase = 0;
           if (rxFlushTimer) { clearTimeout(rxFlushTimer); rxFlushTimer = null; }
           rxFlushScheduled = false;
           logEl.textContent = '';
