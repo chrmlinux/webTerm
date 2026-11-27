@@ -146,6 +146,9 @@
         content: "未接続です。「接続」からシリアルポートを選んでください。接続後はこの画面をクリックして、そのままキー入力できます。";
         color: #1f7a33;
       }
+      html[lang="en"] #log:empty::before {
+        content: "Not connected. Choose a serial port from \"Connect\". After connecting, click this screen and type to send keys directly.";
+      }
       /* 直接入力モード: ログ画面にフォーカスがある間、末尾にカーソルを表示 */
       #log.direct { cursor: text; }
       #log.direct:focus { outline: 1px solid var(--accent-dim); outline-offset: -1px; }
@@ -199,8 +202,8 @@
     <header>
       <div class="row">
         <div class="group">
-          <button id="btnConnect" type="button">接続</button>
-          <label class="lbl" for="baudSel">ボーレート</label>
+          <button id="btnConnect" type="button" data-i18n="connect">接続</button>
+          <label class="lbl" for="baudSel" data-i18n="baud">ボーレート</label>
           <select id="baudSel">
             <option value="9600">9600</option>
             <option value="57600">57600</option>
@@ -208,20 +211,23 @@
             <option value="230400">230400</option>
             <option value="460800">460800</option>
             <option value="921600">921600</option>
-            <option value="custom">カスタム…</option>
+            <option value="custom" data-i18n="custom">カスタム…</option>
           </select>
-          <input id="baudCustom" type="number" inputmode="numeric" min="110" max="4000000" step="1" value="115200" hidden aria-label="カスタムボーレート" />
+          <input id="baudCustom" type="number" inputmode="numeric" min="110" max="4000000" step="1" value="115200" hidden data-i18n-aria="customBaud" aria-label="カスタムボーレート" />
         </div>
         <div class="group">
           <button id="btnDtr" class="toggle" type="button" aria-pressed="false" disabled><span class="dot"></span>DTR</button>
           <button id="btnRts" class="toggle" type="button" aria-pressed="false" disabled><span class="dot"></span>RTS</button>
-          <button id="btnReset" type="button" disabled title="DTR を 100ms 落として戻し、基板をリセットします">リセット (DTRパルス)</button>
+          <button id="btnReset" type="button" disabled data-i18n="reset" data-i18n-title="resetTitle" title="DTR を 100ms 落として戻し、基板をリセットします">リセット (DTRパルス)</button>
         </div>
         <div class="spacer"></div>
         <div class="group">
-          <button id="btnDirect" class="toggle" type="button" aria-pressed="true" title="ON の間、ログ画面をクリックして打ったキーがそのまま送信されます（Ctrl+C、矢印キー、貼り付けも可）。既定は ON です">直接入力</button>
-          <button id="btnScroll" class="toggle" type="button" aria-pressed="true">自動スクロール</button>
-          <button id="btnEcho" class="toggle" type="button" aria-pressed="false" title="ON の間、送信した文字をこの画面にも表示します。接続先（unox など）が入力をエコーする場合は OFF にしてください。ON のままだと文字が二重に表示されます。既定は OFF です">ローカルエコー</button>
+          <button id="btnDirect" class="toggle" type="button" aria-pressed="true" data-i18n="direct" data-i18n-title="directTitle" title="ON の間、ログ画面をクリックして打ったキーがそのまま送信されます（Ctrl+C、矢印キー、貼り付けも可）。既定は ON です">直接入力</button>
+          <button id="btnScroll" class="toggle" type="button" aria-pressed="true" data-i18n="scroll">自動スクロール</button>
+          <button id="btnEcho" class="toggle" type="button" aria-pressed="false" data-i18n="echo" data-i18n-title="echoTitle" title="ON の間、送信した文字をこの画面にも表示します。接続先（unox など）が入力をエコーする場合は OFF にしてください。ON のままだと文字が二重に表示されます。既定は OFF です">ローカルエコー</button>
+        </div>
+        <div class="group">
+          <button id="btnLang" type="button">English</button>
         </div>
       </div>
       <div id="statusbar">
@@ -233,7 +239,7 @@
       </div>
     </header>
 
-    <div id="unsupported" role="alert">
+    <div id="unsupported" role="alert" data-i18n-html="unsupportedHtml">
       このブラウザは Web Serial API（<code>navigator.serial</code>）に対応していないため、シリアルポートへ接続できません。
       PC 版の Google Chrome または Microsoft Edge でこのページを開いてください（モバイルブラウザ・Firefox・Safari は未対応です）。
     </div>
@@ -244,24 +250,24 @@
 
     <footer>
       <div id="sendRow">
-        <input id="sendInput" type="text" placeholder="送信する文字列を入力（Enter で送信）" autocomplete="off" autocapitalize="off" spellcheck="false" disabled />
-        <select id="eolSel" aria-label="改行コード" disabled>
+        <input id="sendInput" type="text" data-i18n-ph="sendPh" placeholder="送信する文字列を入力（Enter で送信）" autocomplete="off" autocapitalize="off" spellcheck="false" disabled />
+        <select id="eolSel" data-i18n-aria="eolLabel" aria-label="改行コード" disabled>
           <option value="lf" selected>LF</option>
           <option value="crlf">CRLF</option>
           <option value="cr">CR</option>
-          <option value="none">なし</option>
+          <option value="none" data-i18n="eolNone">なし</option>
         </select>
-        <button id="btnEsc" class="toggle" type="button" aria-pressed="true" title="送信欄の \n \r \t \e \0 \xHH \\ を実際のバイトに変換して送ります">\n 解釈</button>
-        <button id="btnSend" type="button" disabled>送信</button>
+        <button id="btnEsc" class="toggle" type="button" aria-pressed="true" data-i18n="esc" data-i18n-title="escTitle" title="送信欄の \n \r \t \e \0 \xHH \\ を実際のバイトに変換して送ります">\n 解釈</button>
+        <button id="btnSend" type="button" disabled data-i18n="send">送信</button>
       </div>
       <div class="row">
         <div class="group">
-          <button id="btnSave" type="button">ログを保存 (.log)</button>
-          <button id="btnCopy" type="button">ログをコピー</button>
-          <button id="btnClear" type="button">画面クリア</button>
+          <button id="btnSave" type="button" data-i18n="save">ログを保存 (.log)</button>
+          <button id="btnCopy" type="button" data-i18n="copy">ログをコピー</button>
+          <button id="btnClear" type="button" data-i18n="clear">画面クリア</button>
         </div>
         <div class="spacer"></div>
-        <span class="lbl">↑ / ↓ で送信履歴 ・ 送信欄は \n \r \t \xHH 対応</span>
+        <span class="lbl" data-i18n="hint">↑ / ↓ で送信履歴 ・ 送信欄は \n \r \t \xHH 対応</span>
       </div>
     </footer>
 
@@ -292,12 +298,140 @@
         var btnSend = $('btnSend');
         var toastEl = $('toast');
 
+        /* ---------- i18n (ja / en) ---------- */
+        var STR = {
+          ja: {
+            title: 'Web版シリアル端末',
+            connect: '接続', disconnect: '切断',
+            baud: 'ボーレート', custom: 'カスタム…', customBaud: 'カスタムボーレート',
+            reset: 'リセット (DTRパルス)',
+            resetTitle: 'DTR を 100ms 落として戻し、基板をリセットします',
+            direct: '直接入力',
+            directTitle: 'ON の間、ログ画面をクリックして打ったキーがそのまま送信されます（Ctrl+C、矢印キー、貼り付けも可）。既定は ON です',
+            scroll: '自動スクロール',
+            echo: 'ローカルエコー',
+            echoTitle: 'ON の間、送信した文字をこの画面にも表示します。接続先（unox など）が入力をエコーする場合は OFF にしてください。ON のままだと文字が二重に表示されます。既定は OFF です',
+            notConnected: '未接続',
+            stUnsupported: 'Web Serial API 未対応のブラウザです',
+            stConnFail: '接続失敗',
+            stConnected: '接続中 ・ ',
+            unsupportedHtml: 'このブラウザは Web Serial API（<code>navigator.serial</code>）に対応していないため、シリアルポートへ接続できません。 PC 版の Google Chrome または Microsoft Edge でこのページを開いてください（モバイルブラウザ・Firefox・Safari は未対応です）。',
+            sendPh: '送信する文字列を入力（Enter で送信）',
+            eolLabel: '改行コード', eolNone: 'なし',
+            esc: '\\n 解釈',
+            escTitle: '送信欄の \\n \\r \\t \\e \\0 \\xHH \\\\ を実際のバイトに変換して送ります',
+            send: '送信',
+            save: 'ログを保存 (.log)', copy: 'ログをコピー', clear: '画面クリア',
+            hint: '↑ / ↓ で送信履歴 ・ 送信欄は \\n \\r \\t \\xHH 対応',
+            sendFail: '送信に失敗しました: ',
+            connFail: '接続に失敗しました: ',
+            connOpen: '接続しました（', connClose: '）',
+            recvErr: '受信エラー: ',
+            disconnectedMsg: '切断しました',
+            removedMsg: 'デバイスが取り外されました',
+            sigFail: '信号の設定に失敗しました: ',
+            resetDone: 'DTR パルスでリセット信号を送りました',
+            resetFail: 'リセットに失敗しました: ',
+            echoOn: 'ローカルエコー ON: 送信した文字を画面にも表示します',
+            echoOff: 'ローカルエコー OFF: 接続先のエコーだけを表示します',
+            escOnMsg: '\\n などを実際のバイトに変換して送ります',
+            escOffMsg: '\\n などを文字のまま送ります',
+            directMsg: '直接入力モード: ログ画面をクリックすると、キー入力がそのまま送信されます',
+            noLogSave: '保存するログがありません',
+            savedMsg: 'ログを保存しました: ',
+            noLogCopy: 'コピーするログがありません',
+            copiedOpen: 'ログをクリップボードにコピーしました（',
+            copiedClose: ' 文字）',
+            copyOk: 'ログをコピーしました',
+            copyFail: 'コピーに失敗しました'
+          },
+          en: {
+            title: 'Web Serial Terminal',
+            connect: 'Connect', disconnect: 'Disconnect',
+            baud: 'Baud rate', custom: 'Custom…', customBaud: 'Custom baud rate',
+            reset: 'Reset (DTR pulse)',
+            resetTitle: 'Drops DTR for 100 ms, then restores it to reset the board',
+            direct: 'Direct input',
+            directTitle: 'While ON, keys typed after clicking the log screen are sent as-is (Ctrl+C, arrow keys and paste supported). Default is ON',
+            scroll: 'Auto-scroll',
+            echo: 'Local echo',
+            echoTitle: 'While ON, sent characters are also shown on this screen. If the other end (such as unox) echoes input, turn this OFF; otherwise characters appear twice. Default is OFF',
+            notConnected: 'Not connected',
+            stUnsupported: 'This browser does not support the Web Serial API',
+            stConnFail: 'Connection failed',
+            stConnected: 'Connected · ',
+            unsupportedHtml: 'This browser does not support the Web Serial API (<code>navigator.serial</code>), so it cannot connect to a serial port. Open this page in desktop Google Chrome or Microsoft Edge (mobile browsers, Firefox and Safari are not supported).',
+            sendPh: 'Type text to send (Enter to send)',
+            eolLabel: 'Line ending', eolNone: 'None',
+            esc: 'Interpret \\n',
+            escTitle: 'Converts \\n \\r \\t \\e \\0 \\xHH \\\\ in the send box into actual bytes',
+            send: 'Send',
+            save: 'Save log (.log)', copy: 'Copy log', clear: 'Clear screen',
+            hint: '↑ / ↓: send history · The send box supports \\n \\r \\t \\xHH',
+            sendFail: 'Send failed: ',
+            connFail: 'Connection failed: ',
+            connOpen: 'Connected (', connClose: ')',
+            recvErr: 'Receive error: ',
+            disconnectedMsg: 'Disconnected',
+            removedMsg: 'Device was removed',
+            sigFail: 'Failed to set signals: ',
+            resetDone: 'Reset signal sent (DTR pulse)',
+            resetFail: 'Reset failed: ',
+            echoOn: 'Local echo ON: sent characters are also shown on screen',
+            echoOff: 'Local echo OFF: only the remote echo is shown',
+            escOnMsg: '\\n etc. will be converted into actual bytes',
+            escOffMsg: '\\n etc. will be sent as literal characters',
+            directMsg: 'Direct input mode: click the log screen and your keystrokes are sent as-is',
+            noLogSave: 'No log to save',
+            savedMsg: 'Log saved: ',
+            noLogCopy: 'No log to copy',
+            copiedOpen: 'Copied the log to the clipboard (',
+            copiedClose: ' characters)',
+            copyOk: 'Log copied',
+            copyFail: 'Copy failed'
+          }
+        };
+        var lang = 'ja';
+        try {
+          var savedLang = localStorage.getItem('webterm-lang');
+          if (savedLang && STR[savedLang]) lang = savedLang;
+        } catch (e) {}
+        var L = STR[lang];
+        var lastStatus = { kind: '', key: 'notConnected', baud: 0 };
+        function numLocale() { return lang === 'ja' ? 'ja-JP' : 'en-US'; }
+        var btnLang = $('btnLang');
+        function applyLang() {
+          document.documentElement.lang = lang;
+          document.title = L.title;
+          var els, i;
+          els = document.querySelectorAll('[data-i18n]');
+          for (i = 0; i < els.length; i++) els[i].textContent = L[els[i].getAttribute('data-i18n')];
+          els = document.querySelectorAll('[data-i18n-title]');
+          for (i = 0; i < els.length; i++) els[i].title = L[els[i].getAttribute('data-i18n-title')];
+          els = document.querySelectorAll('[data-i18n-ph]');
+          for (i = 0; i < els.length; i++) els[i].placeholder = L[els[i].getAttribute('data-i18n-ph')];
+          els = document.querySelectorAll('[data-i18n-aria]');
+          for (i = 0; i < els.length; i++) els[i].setAttribute('aria-label', L[els[i].getAttribute('data-i18n-aria')]);
+          els = document.querySelectorAll('[data-i18n-html]');
+          for (i = 0; i < els.length; i++) els[i].innerHTML = L[els[i].getAttribute('data-i18n-html')];
+          btnLang.textContent = (lang === 'ja') ? 'English' : '日本語';
+          btnConnect.textContent = connected ? L.disconnect : L.connect;
+          renderStatus();
+          updateCounters();
+        }
+        btnLang.addEventListener('click', function () {
+          lang = (lang === 'ja') ? 'en' : 'ja';
+          L = STR[lang];
+          try { localStorage.setItem('webterm-lang', lang); } catch (e) {}
+          applyLang();
+        });
+
         var supported = ('serial' in navigator);
         if (!supported) {
           $('unsupported').classList.add('show');
           btnConnect.disabled = true;
           baudSel.disabled = true;
-          setStatus('err', 'Web Serial API 未対応のブラウザです');
+          setStatus('err', 'stUnsupported');
         }
 
         /* ---------- state ---------- */
@@ -334,13 +468,18 @@
           if (toastTimer) clearTimeout(toastTimer);
           toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2200);
         }
-        function setStatus(kind, text) {
-          statusDot.className = kind === 'on' ? 'on' : (kind === 'err' ? 'err' : '');
+        function setStatus(kind, key, baud) {
+          lastStatus = { kind: kind, key: key, baud: baud || 0 };
+          renderStatus();
+        }
+        function renderStatus() {
+          statusDot.className = lastStatus.kind === 'on' ? 'on' : (lastStatus.kind === 'err' ? 'err' : '');
           statusDot.id = 'statusDot';
-          statusText.textContent = text;
+          statusText.textContent = L[lastStatus.key] +
+            (lastStatus.key === 'stConnected' ? lastStatus.baud.toLocaleString(numLocale()) + ' bps' : '');
         }
         function updateCounters() {
-          counters.textContent = 'RX ' + rxBytes.toLocaleString('ja-JP') + ' B ・ TX ' + txBytes.toLocaleString('ja-JP') + ' B';
+          counters.textContent = 'RX ' + rxBytes.toLocaleString(numLocale()) + ' B' + (lang === 'ja' ? ' ・ ' : ' · ') + 'TX ' + txBytes.toLocaleString(numLocale()) + ' B';
         }
         function scrollIfNeeded() {
           if (autoScroll) logEl.scrollTop = logEl.scrollHeight;
@@ -456,7 +595,7 @@
           btnSend.disabled = !on;
           baudSel.disabled = on || !supported;
           baudCustom.disabled = on;
-          btnConnect.textContent = on ? '切断' : '接続';
+          btnConnect.textContent = on ? L.disconnect : L.connect;
           btnConnect.classList.toggle('connected', on);
         }
         function setToggle(btn, on) {
@@ -510,7 +649,7 @@
               txBytes += bytes.length;
               updateCounters();
             } catch (e) {
-              sysLine('送信に失敗しました: ' + (e && e.message ? e.message : e));
+              sysLine(L.sendFail + (e && e.message ? e.message : e));
             }
           });
           return sendChain;
@@ -546,8 +685,8 @@
               bufferSize: 262144
             });
           } catch (e) {
-            sysLine('接続に失敗しました: ' + (e && e.message ? e.message : e));
-            setStatus('err', '接続失敗');
+            sysLine(L.connFail + (e && e.message ? e.message : e));
+            setStatus('err', 'stConnFail');
             port = null;
             return;
           }
@@ -557,8 +696,8 @@
           setControlsEnabled(true);
           var desc = describePort(port);
           portInfo.textContent = desc ? '(' + desc + ')' : '';
-          setStatus('on', '接続中 ・ ' + baud.toLocaleString('ja-JP') + ' bps');
-          sysLine('接続しました（' + baud + ' bps, 8N1' + (desc ? ', ' + desc : '') + '）');
+          setStatus('on', 'stConnected', baud);
+          sysLine(L.connOpen + baud + ' bps, 8N1' + (desc ? ', ' + desc : '') + L.connClose);
           writer = port.writable.getWriter();
           if (directOn) { logEl.focus(); } else { sendInput.focus(); }
           readLoop();
@@ -580,7 +719,7 @@
                   }
                 }
               } catch (e) {
-                if (reading) sysLine('受信エラー: ' + (e && e.message ? e.message : e));
+                if (reading) sysLine(L.recvErr + (e && e.message ? e.message : e));
               } finally {
                 try { reader.releaseLock(); } catch (e2) {}
                 reader = null;
@@ -606,11 +745,11 @@
           writer = null;
           try { if (port) await port.close(); } catch (e) {}
           port = null;
-          if (connected) sysLine('切断しました');
+          if (connected) sysLine(L.disconnectedMsg);
           connected = false;
           portInfo.textContent = '';
           setControlsEnabled(false);
-          setStatus('', '未接続');
+          setStatus('', 'notConnected');
         }
 
         btnConnect.addEventListener('click', function () {
@@ -622,7 +761,7 @@
           navigator.serial.addEventListener('disconnect', function (ev) {
             if (port && ev.target === port) {
               flushRx();
-              sysLine('デバイスが取り外されました');
+              sysLine(L.removedMsg);
               disconnect();
             }
           });
@@ -641,7 +780,7 @@
           try {
             await port.setSignals({ dataTerminalReady: dtrOn, requestToSend: rtsOn });
           } catch (e) {
-            sysLine('信号の設定に失敗しました: ' + (e && e.message ? e.message : e));
+            sysLine(L.sigFail + (e && e.message ? e.message : e));
           }
         }
         btnDtr.addEventListener('click', function () {
@@ -657,9 +796,9 @@
             await port.setSignals({ dataTerminalReady: false, requestToSend: rtsOn });
             await new Promise(function (r) { setTimeout(r, 100); });
             await port.setSignals({ dataTerminalReady: dtrOn, requestToSend: rtsOn });
-            sysLine('DTR パルスでリセット信号を送りました');
+            sysLine(L.resetDone);
           } catch (e) {
-            sysLine('リセットに失敗しました: ' + (e && e.message ? e.message : e));
+            sysLine(L.resetFail + (e && e.message ? e.message : e));
           } finally {
             btnReset.disabled = !connected;
           }
@@ -671,17 +810,17 @@
         });
         btnEcho.addEventListener('click', function () {
           localEcho = !localEcho; setToggle(btnEcho, localEcho);
-          toast(localEcho ? 'ローカルエコー ON: 送信した文字を画面にも表示します' : 'ローカルエコー OFF: 接続先のエコーだけを表示します');
+          toast(localEcho ? L.echoOn : L.echoOff);
         });
         btnEsc.addEventListener('click', function () {
           escOn = !escOn; setToggle(btnEsc, escOn);
-          toast(escOn ? '\\n などを実際のバイトに変換して送ります' : '\\n などを文字のまま送ります');
+          toast(escOn ? L.escOnMsg : L.escOffMsg);
         });
         btnDirect.addEventListener('click', function () {
           directOn = !directOn; setToggle(btnDirect, directOn);
           logEl.classList.toggle('direct', directOn);
           if (directOn) {
-            toast('直接入力モード: ログ画面をクリックすると、キー入力がそのまま送信されます');
+            toast(L.directMsg);
             if (connected) logEl.focus();
           }
         });
@@ -840,7 +979,7 @@
 
         /* ---------- log ops ---------- */
         $('btnSave').addEventListener('click', function () {
-          if (!logText) { toast('保存するログがありません'); return; }
+          if (!logText) { toast(L.noLogSave); return; }
           var now = new Date();
           function p(n, w) { return String(n).padStart(w || 2, '0'); }
           var name = 'serial_' + now.getFullYear() + p(now.getMonth() + 1) + p(now.getDate()) +
@@ -853,13 +992,13 @@
           a.click();
           document.body.removeChild(a);
           setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-          toast('ログを保存しました: ' + name);
+          toast(L.savedMsg + name);
         });
         $('btnCopy').addEventListener('click', async function () {
-          if (!logText) { toast('コピーするログがありません'); return; }
+          if (!logText) { toast(L.noLogCopy); return; }
           try {
             await navigator.clipboard.writeText(logText);
-            toast('ログをクリップボードにコピーしました（' + logText.length.toLocaleString('ja-JP') + ' 文字）');
+            toast(L.copiedOpen + logText.length.toLocaleString(numLocale()) + L.copiedClose);
           } catch (e) {
             // クリップボード API が使えない環境向けフォールバック
             var ta = document.createElement('textarea');
@@ -870,7 +1009,7 @@
             var ok = false;
             try { ok = document.execCommand('copy'); } catch (e2) {}
             document.body.removeChild(ta);
-            toast(ok ? 'ログをコピーしました' : 'コピーに失敗しました');
+            toast(ok ? L.copyOk : L.copyFail);
           }
         });
         $('btnClear').addEventListener('click', function () {
@@ -882,6 +1021,7 @@
           nodeCount = 0;
         });
 
+        applyLang();
         updateCounters();
       })();
     </script>
